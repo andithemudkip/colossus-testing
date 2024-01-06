@@ -1,9 +1,9 @@
 // let uniswapTest = {
 //     pairs: {
-//         'ETH/USDC': {
-//             composition: ['ETH', 'USDC'],
+//         'SOL/USDC': {
+//             composition: ['SOL', 'USDC'],
 //             reserves: {
-//                 ETH: 100,
+//                 SOL: 100,
 //                 USDC: 250000
 //             }
 //         }
@@ -49,8 +49,6 @@
 //         };
 //     }
 // }
-
-const csv = require ('csv-parse');
 const fs = require ('fs');
 
 class DEX {
@@ -109,13 +107,13 @@ class Colossus extends DEX {
     constructor (name, pairs) {
         super (name, pairs);
         this.stats = {
-            'ETH/USDC': {
+            'SOL/USDC': {
                 volume: {
-                    ETH: 0,
+                    SOL: 0,
                     USDC: 0
                 },
                 profit: {
-                    ETH: 0,
+                    SOL: 0,
                     USDC: 0
                 },
                 trades: 0
@@ -176,7 +174,7 @@ class Colossus extends DEX {
             const profitsim = dexsim.tokenBReturns - amountTokenB;
             const percentage = profitsim / amountTokenB * 100;
 
-            if (percentage < 0.2) return false;
+            if (percentage < 1) return false;
 
             const { tokenBReturns } = this.swap (pair, tokenB, tokenA, amountTokenB);
             const returns = dex.swap (pair, tokenA, tokenB, tokenBReturns);
@@ -193,20 +191,20 @@ class Colossus extends DEX {
 }
 
 let uniswap = new DEX ('uniswap', {
-    'ETH/USDC': {
-        composition: ['ETH', 'USDC'],
+    'SOL/USDC': {
+        composition: ['SOL', 'USDC'],
         reserves: {
-            ETH: 100,
+            SOL: 1000,
             USDC: 250000
         }
     }
 });
 
-let colossus = new Colossus ('colossus', {
-    'ETH/USDC': {
-        composition: ['ETH', 'USDC'],
+let colossus = new Colossus ('igni.fi', {
+    'SOL/USDC': {
+        composition: ['SOL', 'USDC'],
         reserves: {
-            ETH: 100,
+            SOL: 1000,
             USDC: 250000
         }
     }
@@ -215,116 +213,141 @@ let colossus = new Colossus ('colossus', {
 
 //tests
 
-// console.log ('reserves', uniswap.pairs['ETH/USDC'].reserves);
-// console.log ('price of ETH', uniswap.calcPrice('ETH/USDC', 'ETH'));
-// console.log (uniswap.swap('ETH/USDC', 'USDC', 'ETH', 10000));
-// console.log ('price of ETH', uniswap.calcPrice('ETH/USDC', 'ETH'));
+// console.log ('reserves', uniswap.pairs['SOL/USDC'].reserves);
+// console.log ('price of SOL', uniswap.calcPrice('SOL/USDC', 'SOL'));
+// console.log (uniswap.swap('SOL/USDC', 'USDC', 'SOL', 10000));
+// console.log ('price of SOL', uniswap.calcPrice('SOL/USDC', 'SOL'));
 
 // console.log ('\n');
 
 // const amountUSDC = 1000;
-// const { reserves, tokenBReturns, priceOfTokenB } = uniswap.simulateSwap('ETH/USDC', 'USDC', 'ETH', amountUSDC);
+// const { reserves, tokenBReturns, priceOfTokenB } = uniswap.simulateSwap('SOL/USDC', 'USDC', 'SOL', amountUSDC);
 // console.log ('simulated: reserves', reserves);
-// console.log ('simulated: swapped', amountUSDC, 'USDC', 'for', tokenBReturns.toFixed (2), 'ETH', 'at', priceOfTokenB.toFixed (2), 'USDC per ETH');
-// uniswap.swap('ETH/USDC', 'USDC', 'ETH', amountUSDC);
-// console.log ('actual: reserves', uniswap.pairs['ETH/USDC'].reserves);
-// console.log ('actual: price of ETH', uniswap.calcPrice('ETH/USDC', 'ETH'));
+// console.log ('simulated: swapped', amountUSDC, 'USDC', 'for', tokenBReturns.toFixed (2), 'SOL', 'at', priceOfTokenB.toFixed (2), 'USDC per SOL');
+// uniswap.swap('SOL/USDC', 'USDC', 'SOL', amountUSDC);
+// console.log ('actual: reserves', uniswap.pairs['SOL/USDC'].reserves);
+// console.log ('actual: price of SOL', uniswap.calcPrice('SOL/USDC', 'SOL'));
 
 // do 1000 random trades on uniswap
-const initialK = colossus.calcK ('ETH/USDC');
-const initialUniswapK = uniswap.calcK ('ETH/USDC');
+const initialK = colossus.calcK ('SOL/USDC');
+const initialUniswapK = uniswap.calcK ('SOL/USDC');
 const reservesLog = [];
 const colossusReservesLog = [];
 const uniswapVolume = {
-    ETH: 0,
+    SOL: 0,
     USDC: 0
 };
 for (let i = 0; i < 200; i++) {
-    const tokenA = uniswap.pairs['ETH/USDC'].composition [Math.floor (Math.random () * 2)];
-    const tokenB = uniswap.pairs['ETH/USDC'].composition.find (t => t !== tokenA);
-    // choose a random amount of tokenA that is under 0.5% of the reserves
-    const amountTokenA = Number ((Math.random () * uniswap.pairs['ETH/USDC'].reserves[tokenA] * 0.1).toFixed (2));
+    const tokenA = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
+    const tokenB = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenA);
+    const multiplier = Math.random () > 0.8 ? 0.04 : 0.02;
+    const amountTokenA = Number ((Math.random () * uniswap.pairs['SOL/USDC'].reserves[tokenA] * multiplier).toFixed (2));
     uniswapVolume [tokenA] += amountTokenA;
-    for (let j = 0; j < 20; j++) {
-        colossus.doArbitrage ('ETH/USDC', uniswap);
-    }
-    const { tokenBReturns } = uniswap.swap('ETH/USDC', tokenA, tokenB, amountTokenA);
+    const { tokenBReturns } = uniswap.swap('SOL/USDC', tokenA, tokenB, amountTokenA);
     uniswapVolume [tokenB] += tokenBReturns;
-    // (i % 50 == 0) && console.log ('>', amountTokenA, tokenA, '->', tokenBReturns.toFixed (2), tokenB, '@', uniswap.calcPrice ('ETH/USDC', 'ETH'), 'USDC', '/', 'ETH (k = ', uniswap.calcK ('ETH/USDC').toFixed (2) + ')');
-    reservesLog.push (uniswap.pairs['ETH/USDC'].reserves);
-    colossusReservesLog.push (colossus.pairs['ETH/USDC'].reserves);
-    // if (i % 70 === 0) {
-    //     console.log ('>', amountTokenA, tokenA, '->', tokenBReturns.toFixed (2), tokenB, '@', uniswap.calcPrice ('ETH/USDC', 'ETH'), 'USDC', '/', 'ETH');
-    //     console.log ('colossus:\t\t', colossus.calcPrice ('ETH/USDC', 'ETH').toFixed (8), 'USDC', '/', 'ETH');
+    // (i % 50 == 0) && console.log ('>', amountTokenA, tokenA, '->', tokenBReturns.toFixed (2), tokenB, '@', uniswap.calcPrice ('SOL/USDC', 'SOL'), 'USDC', '/', 'SOL (k = ', uniswap.calcK ('SOL/USDC').toFixed (2) + ')');
+    
+    // do random trade on colossus
+    // const multiplierCol = Math.random () > 0.97 ? 0.03 : 0.01;
+    // const tokenACol = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
+    // const tokenBCol = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenACol);
+    // const amountTokenA2 = Number ((Math.random () * colossus.pairs['SOL/USDC'].reserves[tokenACol] * multiplierCol).toFixed (2));
+    // const { tokenBReturns: tokenBReturns2 } = colossus.swap ('SOL/USDC', tokenACol, tokenBCol, amountTokenA2);
+    // colossus.stats ['SOL/USDC'].volume [tokenACol] += amountTokenA2;
+    // colossus.stats ['SOL/USDC'].volume [tokenBCol] += tokenBReturns2;
+
+    // for (let j = 0; j < 5; j++) {
+    //     colossus.doArbitrage ('SOL/USDC', uniswap);
     // }
+    
+    // if (i % 1 === 0 || (Math.abs (uniswap.calcPrice ('SOL/USDC', 'SOL') - colossus.calcPrice ('SOL/USDC', 'SOL')) > 5)) {
+    for (let j = 0; j < 5; j++) {
+        colossus.doArbitrage ('SOL/USDC', uniswap);
+    }
+    // }
+
+    reservesLog.push (uniswap.pairs['SOL/USDC'].reserves);
+    colossusReservesLog.push (colossus.pairs['SOL/USDC'].reserves);
+    // if (i % 70 === 0) {
+    //     console.log ('>', amountTokenA, tokenA, '->', tokenBReturns.toFixed (2), tokenB, '@', uniswap.calcPrice ('SOL/USDC', 'SOL'), 'USDC', '/', 'SOL');
+    //     console.log ('colossus:\t\t', colossus.calcPrice ('SOL/USDC', 'SOL').toFixed (8), 'USDC', '/', 'SOL');
+    // }s
 }
 
 // write the logs to json files
 fs.writeFileSync ('./uniswapReserves.json', JSON.stringify (reservesLog));
 fs.writeFileSync ('./colossusReserves.json', JSON.stringify (colossusReservesLog));
 
+console.log ('\n - Price -');
 
-
-// const csvContent = fs.readFileSync ('./bitstampUSD_1-min_data_2012-01-01_to_2021-03-31.csv');
-// const records = csv.parse (csvContent, {
-//     bom: true,
-//     columns: true
-// }, (err, records) => {
-//     if (err) throw err;
-//     // console.log (records.length);
-//     records = records.filter (r => r.Weighted_Price !== 'NaN');
-//     records = records.filter ((r, i) => i % 10 === 0);
-//     console.log (records.length);
-// });
-
-console.log ('\n');
-
-console.log ('uniswap: price of ETH', uniswap.calcPrice ('ETH/USDC', 'ETH'));
-console.log ('colossus: price of ETH', colossus.calcPrice ('ETH/USDC', 'ETH'));
+console.log ('<other dex>: price of SOL', uniswap.calcPrice ('SOL/USDC', 'SOL'));
+console.log ('<igni.fi>: price of SOL', colossus.calcPrice ('SOL/USDC', 'SOL'));
 
 // calculate profit
-const profit = colossus.stats ['ETH/USDC'].profit;
-const volume = colossus.stats ['ETH/USDC'].volume;
+const profit = colossus.stats ['SOL/USDC'].profit;
+const volume = colossus.stats ['SOL/USDC'].volume;
 const percentage = {
-    ETH: profit.ETH / volume.ETH * 100,
+    SOL: profit.SOL / volume.SOL * 100,
     USDC: profit.USDC / volume.USDC * 100
 };
-const finalK = colossus.calcK ('ETH/USDC');
-const finalUniK = uniswap.calcK ('ETH/USDC');
-const KGrowthPercent = (finalK - initialK) / initialK * 100;
-const KGrowthPercentUni = (finalUniK - initialUniswapK) / initialUniswapK * 100;
-console.log (`profit: ${profit.ETH.toFixed (8)} ETH (${percentage.ETH.toFixed (2)}% of volume)`);
-console.log (`profit: ${profit.USDC.toFixed (8)} USDC (${percentage.USDC.toFixed (2)}% of volume)`);
-console.log (`volume: ${volume.ETH.toFixed (8)} ETH`);
-console.log (`volume: ${volume.USDC.toFixed (8)} USDC`);
-console.log (`trades: ${colossus.stats ['ETH/USDC'].trades}`);
-console.log (`initial K: ${Math.round (initialK)}`);
-console.log (`final K: ${Math.round (finalK)} (${KGrowthPercent.toFixed (2)}% growth)`);
-console.log (`uniswap volume: ${uniswapVolume.ETH.toFixed (8)} ETH`);
-console.log (`uniswap volume: ${uniswapVolume.USDC.toFixed (8)} USDC`);
-console.log (`uniswap initial K: ${Math.round (initialUniswapK)}`);
-console.log (`uniswap final K: ${Math.round (finalUniK)} (${KGrowthPercentUni.toFixed (2)}% growth)`);
+const finalK = colossus.calcK ('SOL/USDC');
+const finalUniK = uniswap.calcK ('SOL/USDC');
 
-console.log ('\n');
+const reservesIncludingProfit = {
+    SOL: colossus.pairs ['SOL/USDC'].reserves ['SOL'] + colossus.stats ['SOL/USDC'].profit ['SOL'],
+    USDC: colossus.pairs ['SOL/USDC'].reserves ['USDC'] + colossus.stats ['SOL/USDC'].profit ['USDC']
+};
+
+const KIncludingProfit = reservesIncludingProfit.SOL * reservesIncludingProfit.USDC;
+
+
+const KGrowthPercent = (finalK - initialK) / initialK * 100;
+const KGrowthPercentIncludingProfit = (KIncludingProfit - initialK) / initialK * 100;
+const KGrowthPercentUni = (finalUniK - initialUniswapK) / initialUniswapK * 100;
+
+console.log ('\n - Stats -');
+console.log (`<other dex> volume: ${uniswapVolume.SOL.toFixed (8)} SOL`);
+console.log (`<other dex> volume: ${uniswapVolume.USDC.toFixed (8)} USDC`);
+console.log (`<igni.fi> volume: ${volume.SOL.toFixed (8)} SOL`);
+console.log (`<igni.fi> volume: ${volume.USDC.toFixed (8)} USDC`);
+console.log (`<igni.fi> arb profit: ${profit.SOL.toFixed (8)} SOL (${percentage.SOL.toFixed (2)}% of volume)`);
+console.log (`<igni.fi> arb profit: ${profit.USDC.toFixed (8)} USDC (${percentage.USDC.toFixed (2)}% of volume)`);
+console.log (`<igni.fi> trades: ${colossus.stats ['SOL/USDC'].trades}`);
+
+// console.log (`<other dex> final K: ${Math.round (finalUniK)} (${KGrowthPercentUni.toFixed (2)}% growth)`);
+
+console.log ('\n - Reserves -');
 
 // reserves
 
-console.log (`uniswap (LP): ${uniswap.pairs['ETH/USDC'].reserves.ETH.toFixed (8)} ETH`);
-console.log (`uniswap (LP): ${uniswap.pairs['ETH/USDC'].reserves.USDC.toFixed (8)} USDC`);
+console.log (`<other dex> (LP): ${uniswap.pairs['SOL/USDC'].reserves.SOL.toFixed (8)} SOL`);
+console.log (`<other dex> (LP): ${uniswap.pairs['SOL/USDC'].reserves.USDC.toFixed (8)} USDC`);
 // total assets
 
-console.log (`colossus (LP + PROFIT): ${(colossus.pairs ['ETH/USDC'].reserves ['ETH'] + colossus.stats ['ETH/USDC'].profit ['ETH']).toFixed (8)} ETH`);
-console.log (`colossus (LP + PROFIT): ${(colossus.pairs ['ETH/USDC'].reserves ['USDC'] + colossus.stats ['ETH/USDC'].profit ['USDC']).toFixed (8)} USDC`);
+// console.log ('\n- Total Assets -');
 
-console.log (`colossus (LP): ${colossus.pairs['ETH/USDC'].reserves.ETH.toFixed (8)} ETH`);
-console.log (`colossus (LP): ${colossus.pairs['ETH/USDC'].reserves.USDC.toFixed (8)} USDC`);
+console.log (`<igni.fi> (LP): ${colossus.pairs['SOL/USDC'].reserves.SOL.toFixed (8)} SOL`);
+console.log (`<igni.fi> (LP): ${colossus.pairs['SOL/USDC'].reserves.USDC.toFixed (8)} USDC`);
 
-console.log ('\n');
+console.log (`<igni.fi> (LP + ARB): ${(colossus.pairs ['SOL/USDC'].reserves ['SOL'] + colossus.stats ['SOL/USDC'].profit ['SOL']).toFixed (8)} SOL`);
+console.log (`<igni.fi> (LP + ARB): ${(colossus.pairs ['SOL/USDC'].reserves ['USDC'] + colossus.stats ['SOL/USDC'].profit ['USDC']).toFixed (8)} USDC`);
 
-const ColossusUSDCValue = colossus.pairs ['ETH/USDC'].reserves.USDC + colossus.stats ['ETH/USDC'].profit ['USDC'] + (colossus.pairs ['ETH/USDC'].reserves.ETH + colossus.stats ['ETH/USDC'].profit ['ETH']) * uniswap.calcPrice ('ETH/USDC', 'ETH');
-const UniswapUSDCValue = uniswap.pairs ['ETH/USDC'].reserves.USDC + uniswap.pairs ['ETH/USDC'].reserves.ETH * uniswap.calcPrice ('ETH/USDC', 'ETH');
+console.log ('\n- USDC Value -');
 
-console.log (`colossus (LP + PROFIT): ${ColossusUSDCValue.toFixed (8)} USDC`);
-console.log (`uniswap (LP): ${UniswapUSDCValue.toFixed (8)} USDC`);
+const ColossusUSDCValue = colossus.pairs ['SOL/USDC'].reserves.USDC + colossus.stats ['SOL/USDC'].profit ['USDC'] + (colossus.pairs ['SOL/USDC'].reserves.SOL + colossus.stats ['SOL/USDC'].profit ['SOL']) * uniswap.calcPrice ('SOL/USDC', 'SOL');
+const UniswapUSDCValue = uniswap.pairs ['SOL/USDC'].reserves.USDC + uniswap.pairs ['SOL/USDC'].reserves.SOL * uniswap.calcPrice ('SOL/USDC', 'SOL');
 
-console.log (`delta: ${(ColossusUSDCValue - UniswapUSDCValue).toFixed (8)} USDC`);
+console.log (`<other dex> (LP): ${UniswapUSDCValue.toFixed (8)} USDC`);
+console.log (`<igni.fi> (LP + ARB): ${ColossusUSDCValue.toFixed (8)} USDC`);
+
+const percentageGrowth = (ColossusUSDCValue - UniswapUSDCValue) / UniswapUSDCValue * 100;
+console.log (`USDC delta: ${(ColossusUSDCValue - UniswapUSDCValue).toFixed (8)} USDC (${percentageGrowth.toFixed (2)}%)`);
+
+console.log ('\n- K -');
+console.log (`<other dex> initial K: ${Math.round (initialUniswapK)}`);
+console.log (`<other dex> (LP): ${finalUniK.toFixed (8)} (+${KGrowthPercentUni.toFixed (2)}%)`);
+console.log (`<igni.fi> initial K: ${Math.round (initialK)}`);
+console.log (`<igni.fi> (LP): ${Math.round (finalK)} (${KGrowthPercent.toFixed (2)}% growth)`);
+console.log (`<igni.fi> (LP + ARB): ${KIncludingProfit.toFixed (8)} (+${KGrowthPercentIncludingProfit.toFixed (2)}%)`);
+
+// console.log (`<igni.fi> K growth (LP + PROFIT) ${KGrowthPercentIncludingProfit.toFixed (2)}%`);

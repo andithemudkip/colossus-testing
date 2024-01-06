@@ -2,11 +2,11 @@ fetch ("./colossusReserves.json").then(response => {
     return response.json();
 }).then (async data => {
     console.log (data);
-    const pricesColossus = data.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.ETH).toFixed(2)));
+    const pricesColossus = data.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.SOL).toFixed(2)));
     console.log (pricesColossus);
     const uniswapData = await fetch ("./uniswapReserves.json");
     const uniswap = await uniswapData.json();
-    const pricesUniswap = uniswap.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.ETH).toFixed(2)));
+    const pricesUniswap = uniswap.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.SOL).toFixed(2)));
     var chart = bb.generate({
         bindto: "#chart",
         data: {
