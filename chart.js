@@ -26,7 +26,7 @@ fetch ("./colossusReserves.json").then(response => {
     });
     chart.axis.range ({
         min: {
-            y: 0
+            y: 100
         }
     })
 }

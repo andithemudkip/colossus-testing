@@ -73,11 +73,14 @@ class DEX {
         const fee = 0.003 * amount;
         let newAReserves = reserves[tokenA] + amount - fee;
         let newBReserves = this.calcK (pair) / newAReserves;
+
         let newReserves = {
             [tokenA]: newAReserves + fee,
             [tokenB]: newBReserves
         };
-        const tokenBReturns = reserves[tokenB] - newBReserves;
+        let tokenBReturns = reserves[tokenB] - newBReserves;
+        const slippage = 0.0025 * tokenBReturns;
+        tokenBReturns -= slippage;
         this.pairs[pair].reserves = newReserves;
         return {
             reserves: newReserves,
@@ -94,6 +97,8 @@ class DEX {
             [tokenB]: newBReserves
         };
         let tokenBReturns = reserves[tokenB] - newBReserves;
+        const slippage = 0.0025 * tokenBReturns;
+        tokenBReturns -= slippage;
         let priceOfTokenB = newReserves[tokenA] / newReserves[tokenB];
         return {
             reserves: newReserves,
@@ -103,8 +108,8 @@ class DEX {
     }
 }
 
-class Colossus extends DEX {
-    constructor (name, pairs) {
+class Ignifi extends DEX {
+    constructor (name, pairs, funds) {
         super (name, pairs);
         this.stats = {
             'SOL/USDC': {
@@ -119,6 +124,7 @@ class Colossus extends DEX {
                 trades: 0
             }
         };
+        this.funds = funds;
     }
     doArbitrage (pair, dex) {
         const tokenA = this.pairs[pair].composition [0];
@@ -137,8 +143,10 @@ class Colossus extends DEX {
             // reserves [tokenA] need to be this much in order for the price of tokenA to match the price of tokenA on dex
             const reservesNeeded = reserves [tokenB] * tokenBPriceDex;
             const idealAmountTokenA = reservesNeeded - reserves [tokenA];
-            const amountTokenA = Math.min (idealAmountTokenA, reserves [tokenA] * 0.01, dex.pairs [pair].reserves [tokenA] * 0.01);
-
+            // const amountTokenA = Math.min (idealAmountTokenA, reserves [tokenA] * 0.01, dex.pairs [pair].reserves [tokenA] * 0.01);
+            const amountTokenA = Math.min (this.funds [tokenA], idealAmountTokenA, reserves [tokenA] * 0.01, dex.pairs [pair].reserves [tokenA] * 0.01);
+            
+            // console.log (`using ${amountTokenA} ${tokenA} to buy ${tokenB} on ${this.name}`);
             // simulate the swap on this dex
             const colsim = this.simulateSwap (pair, tokenA, tokenB, amountTokenA);
             // simulate the swap on the other dex
@@ -147,16 +155,21 @@ class Colossus extends DEX {
             const profitsim = dexsim.tokenBReturns - amountTokenA;
             const percentage = profitsim / amountTokenA * 100;
 
-            if (percentage < 1) return false;
+            if (percentage < 0.7) return false;
 
             const { tokenBReturns } = this.swap (pair, tokenA, tokenB, amountTokenA);
             const returns = dex.swap (pair, tokenB, tokenA, tokenBReturns);
             const profit = returns.tokenBReturns - amountTokenA;
             // this.pairs [pair].reserves [tokenA] += profit;
-            this.stats [pair].profit [tokenA] += profit;
+            // this.funds [tokenA] += profit * ;
+            // add 5% of the profit to the funds
+            const toFunds = profit * 0.05;
+            this.funds [tokenA] += toFunds;
+            this.stats [pair].profit [tokenA] += profit - toFunds;
             this.stats [pair].volume [tokenA] += amountTokenA;
             this.stats [pair].volume [tokenB] += tokenBReturns;
             this.stats [pair].trades++;
+            return true;
         } else if (tokenAPrice < tokenAPriceDex && tokenBPrice > tokenBPriceDex) {
             // console.log ('swap', tokenB, 'for', tokenA, 'on', this.name);
             // console.log ('swap', tokenA, 'for', tokenB, 'on', dex.name);
@@ -164,8 +177,10 @@ class Colossus extends DEX {
             const reserves = this.pairs [pair].reserves;
             const reservesNeeded = reserves [tokenA] * tokenAPriceDex;
             const idealAmountTokenB = reservesNeeded - reserves [tokenB];
-            const amountTokenB = Math.min (idealAmountTokenB, reserves [tokenB] * 0.01, dex.pairs [pair].reserves [tokenB] * 0.01);
-
+            // const amountTokenB = Math.min (idealAmountTokenB, reserves [tokenB] * 0.01, dex.pairs [pair].reserves [tokenB] * 0.01);
+            const amountTokenB = Math.min (this.funds [tokenB], idealAmountTokenB, reserves [tokenB] * 0.01, dex.pairs [pair].reserves [tokenB] * 0.01);
+            
+            // console.log (`using ${amountTokenB} ${tokenB} to buy ${tokenA} on ${this.name}`);
             // simulate the swap on this dex
             const colsim = this.simulateSwap (pair, tokenB, tokenA, amountTokenB);
             // simulate the swap on the other dex
@@ -174,16 +189,18 @@ class Colossus extends DEX {
             const profitsim = dexsim.tokenBReturns - amountTokenB;
             const percentage = profitsim / amountTokenB * 100;
 
-            if (percentage < 1) return false;
+            if (percentage < 0.7) return false;
 
             const { tokenBReturns } = this.swap (pair, tokenB, tokenA, amountTokenB);
             const returns = dex.swap (pair, tokenA, tokenB, tokenBReturns);
             const profit = returns.tokenBReturns - amountTokenB;
-            // this.pairs [pair].reserves [tokenB] += profit;
-            this.stats [pair].profit [tokenB] += profit;
+            const toFunds = profit * 0.05;
+            this.funds [tokenB] += toFunds;
+            this.stats [pair].profit [tokenB] += profit - toFunds;
             this.stats [pair].volume [tokenB] += amountTokenB;
             this.stats [pair].volume [tokenA] += tokenBReturns;
             this.stats [pair].trades++;
+            return true;
         } else {
             return false;
         }
@@ -200,102 +217,80 @@ let uniswap = new DEX ('uniswap', {
     }
 });
 
-let colossus = new Colossus ('igni.fi', {
+let ignifi = new Ignifi ('igni.fi', {
     'SOL/USDC': {
         composition: ['SOL', 'USDC'],
         reserves: {
             SOL: 1000,
             USDC: 250000
         }
+    }   
+},
+    {
+        SOL: 10,
+        USDC: 2500
     }
-});
+);
 
-
-//tests
-
-// console.log ('reserves', uniswap.pairs['SOL/USDC'].reserves);
-// console.log ('price of SOL', uniswap.calcPrice('SOL/USDC', 'SOL'));
-// console.log (uniswap.swap('SOL/USDC', 'USDC', 'SOL', 10000));
-// console.log ('price of SOL', uniswap.calcPrice('SOL/USDC', 'SOL'));
-
-// console.log ('\n');
-
-// const amountUSDC = 1000;
-// const { reserves, tokenBReturns, priceOfTokenB } = uniswap.simulateSwap('SOL/USDC', 'USDC', 'SOL', amountUSDC);
-// console.log ('simulated: reserves', reserves);
-// console.log ('simulated: swapped', amountUSDC, 'USDC', 'for', tokenBReturns.toFixed (2), 'SOL', 'at', priceOfTokenB.toFixed (2), 'USDC per SOL');
-// uniswap.swap('SOL/USDC', 'USDC', 'SOL', amountUSDC);
-// console.log ('actual: reserves', uniswap.pairs['SOL/USDC'].reserves);
-// console.log ('actual: price of SOL', uniswap.calcPrice('SOL/USDC', 'SOL'));
-
-// do 1000 random trades on uniswap
-const initialK = colossus.calcK ('SOL/USDC');
+const initialK = ignifi.calcK ('SOL/USDC');
 const initialUniswapK = uniswap.calcK ('SOL/USDC');
 const reservesLog = [];
-const colossusReservesLog = [];
+const ignifiReservesLog = [];
 const uniswapVolume = {
     SOL: 0,
     USDC: 0
 };
-for (let i = 0; i < 200; i++) {
+const doRandomTradeOnIgnifi = false;
+for (let i = 0; i < 300; i++) {
     const tokenA = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
     const tokenB = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenA);
-    const multiplier = Math.random () > 0.8 ? 0.04 : 0.02;
+    const multiplier = Math.random () > 0.8 ? 0.03 : 0.02;
     const amountTokenA = Number ((Math.random () * uniswap.pairs['SOL/USDC'].reserves[tokenA] * multiplier).toFixed (2));
     uniswapVolume [tokenA] += amountTokenA;
     const { tokenBReturns } = uniswap.swap('SOL/USDC', tokenA, tokenB, amountTokenA);
     uniswapVolume [tokenB] += tokenBReturns;
-    // (i % 50 == 0) && console.log ('>', amountTokenA, tokenA, '->', tokenBReturns.toFixed (2), tokenB, '@', uniswap.calcPrice ('SOL/USDC', 'SOL'), 'USDC', '/', 'SOL (k = ', uniswap.calcK ('SOL/USDC').toFixed (2) + ')');
     
     // do random trade on colossus
-    // const multiplierCol = Math.random () > 0.97 ? 0.03 : 0.01;
-    // const tokenACol = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
-    // const tokenBCol = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenACol);
-    // const amountTokenA2 = Number ((Math.random () * colossus.pairs['SOL/USDC'].reserves[tokenACol] * multiplierCol).toFixed (2));
-    // const { tokenBReturns: tokenBReturns2 } = colossus.swap ('SOL/USDC', tokenACol, tokenBCol, amountTokenA2);
-    // colossus.stats ['SOL/USDC'].volume [tokenACol] += amountTokenA2;
-    // colossus.stats ['SOL/USDC'].volume [tokenBCol] += tokenBReturns2;
+    doRandomTradeOnIgnifi && (() => {
+        const multiplierCol = Math.random () > 0.97 ? 0.02 : 0.01;
+        const tokenACol = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
+        const tokenBCol = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenACol);
+        const amountTokenA2 = Number ((Math.random () * ignifi.pairs['SOL/USDC'].reserves[tokenACol] * multiplierCol).toFixed (2));
+        const { tokenBReturns: tokenBReturns2 } = ignifi.swap ('SOL/USDC', tokenACol, tokenBCol, amountTokenA2);
+        ignifi.stats ['SOL/USDC'].volume [tokenACol] += amountTokenA2;
+        ignifi.stats ['SOL/USDC'].volume [tokenBCol] += tokenBReturns2;
+    }) ();
 
-    // for (let j = 0; j < 5; j++) {
-    //     colossus.doArbitrage ('SOL/USDC', uniswap);
-    // }
-    
-    // if (i % 1 === 0 || (Math.abs (uniswap.calcPrice ('SOL/USDC', 'SOL') - colossus.calcPrice ('SOL/USDC', 'SOL')) > 5)) {
-    for (let j = 0; j < 5; j++) {
-        colossus.doArbitrage ('SOL/USDC', uniswap);
-    }
-    // }
+    let iters = 0;
+    while (ignifi.doArbitrage ('SOL/USDC', uniswap)) { iters++ };
+    // console.log (iters);
 
     reservesLog.push (uniswap.pairs['SOL/USDC'].reserves);
-    colossusReservesLog.push (colossus.pairs['SOL/USDC'].reserves);
-    // if (i % 70 === 0) {
-    //     console.log ('>', amountTokenA, tokenA, '->', tokenBReturns.toFixed (2), tokenB, '@', uniswap.calcPrice ('SOL/USDC', 'SOL'), 'USDC', '/', 'SOL');
-    //     console.log ('colossus:\t\t', colossus.calcPrice ('SOL/USDC', 'SOL').toFixed (8), 'USDC', '/', 'SOL');
-    // }s
+    ignifiReservesLog.push (ignifi.pairs['SOL/USDC'].reserves);
 }
 
 // write the logs to json files
 fs.writeFileSync ('./uniswapReserves.json', JSON.stringify (reservesLog));
-fs.writeFileSync ('./colossusReserves.json', JSON.stringify (colossusReservesLog));
+fs.writeFileSync ('./colossusReserves.json', JSON.stringify (ignifiReservesLog));
 
 console.log ('\n - Price -');
 
 console.log ('<other dex>: price of SOL', uniswap.calcPrice ('SOL/USDC', 'SOL'));
-console.log ('<igni.fi>: price of SOL', colossus.calcPrice ('SOL/USDC', 'SOL'));
+console.log ('<igni.fi>: price of SOL', ignifi.calcPrice ('SOL/USDC', 'SOL'));
 
 // calculate profit
-const profit = colossus.stats ['SOL/USDC'].profit;
-const volume = colossus.stats ['SOL/USDC'].volume;
+const profit = ignifi.stats ['SOL/USDC'].profit;
+const volume = ignifi.stats ['SOL/USDC'].volume;
 const percentage = {
     SOL: profit.SOL / volume.SOL * 100,
     USDC: profit.USDC / volume.USDC * 100
 };
-const finalK = colossus.calcK ('SOL/USDC');
+const finalK = ignifi.calcK ('SOL/USDC');
 const finalUniK = uniswap.calcK ('SOL/USDC');
 
 const reservesIncludingProfit = {
-    SOL: colossus.pairs ['SOL/USDC'].reserves ['SOL'] + colossus.stats ['SOL/USDC'].profit ['SOL'],
-    USDC: colossus.pairs ['SOL/USDC'].reserves ['USDC'] + colossus.stats ['SOL/USDC'].profit ['USDC']
+    SOL: ignifi.pairs ['SOL/USDC'].reserves ['SOL'] + ignifi.stats ['SOL/USDC'].profit ['SOL'],
+    USDC: ignifi.pairs ['SOL/USDC'].reserves ['USDC'] + ignifi.stats ['SOL/USDC'].profit ['USDC']
 };
 
 const KIncludingProfit = reservesIncludingProfit.SOL * reservesIncludingProfit.USDC;
@@ -312,8 +307,9 @@ console.log (`<igni.fi> volume: ${volume.SOL.toFixed (8)} SOL`);
 console.log (`<igni.fi> volume: ${volume.USDC.toFixed (8)} USDC`);
 console.log (`<igni.fi> arb profit: ${profit.SOL.toFixed (8)} SOL (${percentage.SOL.toFixed (2)}% of volume)`);
 console.log (`<igni.fi> arb profit: ${profit.USDC.toFixed (8)} USDC (${percentage.USDC.toFixed (2)}% of volume)`);
-console.log (`<igni.fi> trades: ${colossus.stats ['SOL/USDC'].trades}`);
-
+console.log (`<igni.fi> trades: ${ignifi.stats ['SOL/USDC'].trades}`);
+console.log (`<igni.fi> funds: ${ignifi.funds.SOL.toFixed (8)} SOL`);
+console.log (`<igni.fi> funds: ${ignifi.funds.USDC.toFixed (8)} USDC`);
 // console.log (`<other dex> final K: ${Math.round (finalUniK)} (${KGrowthPercentUni.toFixed (2)}% growth)`);
 
 console.log ('\n - Reserves -');
@@ -326,15 +322,15 @@ console.log (`<other dex> (LP): ${uniswap.pairs['SOL/USDC'].reserves.USDC.toFixe
 
 // console.log ('\n- Total Assets -');
 
-console.log (`<igni.fi> (LP): ${colossus.pairs['SOL/USDC'].reserves.SOL.toFixed (8)} SOL`);
-console.log (`<igni.fi> (LP): ${colossus.pairs['SOL/USDC'].reserves.USDC.toFixed (8)} USDC`);
+console.log (`<igni.fi> (LP): ${ignifi.pairs['SOL/USDC'].reserves.SOL.toFixed (8)} SOL`);
+console.log (`<igni.fi> (LP): ${ignifi.pairs['SOL/USDC'].reserves.USDC.toFixed (8)} USDC`);
 
-console.log (`<igni.fi> (LP + ARB): ${(colossus.pairs ['SOL/USDC'].reserves ['SOL'] + colossus.stats ['SOL/USDC'].profit ['SOL']).toFixed (8)} SOL`);
-console.log (`<igni.fi> (LP + ARB): ${(colossus.pairs ['SOL/USDC'].reserves ['USDC'] + colossus.stats ['SOL/USDC'].profit ['USDC']).toFixed (8)} USDC`);
+console.log (`<igni.fi> (LP + ARB): ${(ignifi.pairs ['SOL/USDC'].reserves ['SOL'] + ignifi.stats ['SOL/USDC'].profit ['SOL']).toFixed (8)} SOL`);
+console.log (`<igni.fi> (LP + ARB): ${(ignifi.pairs ['SOL/USDC'].reserves ['USDC'] + ignifi.stats ['SOL/USDC'].profit ['USDC']).toFixed (8)} USDC`);
 
 console.log ('\n- USDC Value -');
 
-const ColossusUSDCValue = colossus.pairs ['SOL/USDC'].reserves.USDC + colossus.stats ['SOL/USDC'].profit ['USDC'] + (colossus.pairs ['SOL/USDC'].reserves.SOL + colossus.stats ['SOL/USDC'].profit ['SOL']) * uniswap.calcPrice ('SOL/USDC', 'SOL');
+const ColossusUSDCValue = ignifi.pairs ['SOL/USDC'].reserves.USDC + ignifi.stats ['SOL/USDC'].profit ['USDC'] + (ignifi.pairs ['SOL/USDC'].reserves.SOL + ignifi.stats ['SOL/USDC'].profit ['SOL']) * uniswap.calcPrice ('SOL/USDC', 'SOL');
 const UniswapUSDCValue = uniswap.pairs ['SOL/USDC'].reserves.USDC + uniswap.pairs ['SOL/USDC'].reserves.SOL * uniswap.calcPrice ('SOL/USDC', 'SOL');
 
 console.log (`<other dex> (LP): ${UniswapUSDCValue.toFixed (8)} USDC`);
@@ -349,5 +345,5 @@ console.log (`<other dex> (LP): ${finalUniK.toFixed (8)} (+${KGrowthPercentUni.t
 console.log (`<igni.fi> initial K: ${Math.round (initialK)}`);
 console.log (`<igni.fi> (LP): ${Math.round (finalK)} (${KGrowthPercent.toFixed (2)}% growth)`);
 console.log (`<igni.fi> (LP + ARB): ${KIncludingProfit.toFixed (8)} (+${KGrowthPercentIncludingProfit.toFixed (2)}%)`);
-
+console.log (`${(KGrowthPercentIncludingProfit / KGrowthPercentUni).toFixed (2)}x of <other dex> K growth`);
 // console.log (`<igni.fi> K growth (LP + PROFIT) ${KGrowthPercentIncludingProfit.toFixed (2)}%`);
