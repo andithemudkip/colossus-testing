@@ -11,15 +11,15 @@ fetch ("./colossusReserves.json").then(response => {
         bindto: "#chart",
         data: {
             columns: [
-                ["Colossus", ...pricesColossus],
+                ["igni.fi", ...pricesColossus],
                 ["Uniswap", ...pricesUniswap]
             ],
             types: {
-                Colossus: "area-spline",
+                'igni.fi': "area-spline",
                 Uniswap: "area-spline"
             },
             colors: {
-                Colossus: "blue",
+                'igni.fi': "blue",
                 Uniswap: "green"
             }
         }

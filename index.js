@@ -148,9 +148,9 @@ class Ignifi extends DEX {
             
             // console.log (`using ${amountTokenA} ${tokenA} to buy ${tokenB} on ${this.name}`);
             // simulate the swap on this dex
-            const colsim = this.simulateSwap (pair, tokenA, tokenB, amountTokenA);
+            const ignisim = this.simulateSwap (pair, tokenA, tokenB, amountTokenA);
             // simulate the swap on the other dex
-            const dexsim = dex.simulateSwap (pair, tokenB, tokenA, colsim.tokenBReturns);
+            const dexsim = dex.simulateSwap (pair, tokenB, tokenA, ignisim.tokenBReturns);
             // calculate the profit
             const profitsim = dexsim.tokenBReturns - amountTokenA;
             const percentage = profitsim / amountTokenA * 100;
@@ -182,9 +182,9 @@ class Ignifi extends DEX {
             
             // console.log (`using ${amountTokenB} ${tokenB} to buy ${tokenA} on ${this.name}`);
             // simulate the swap on this dex
-            const colsim = this.simulateSwap (pair, tokenB, tokenA, amountTokenB);
+            const ignisim = this.simulateSwap (pair, tokenB, tokenA, amountTokenB);
             // simulate the swap on the other dex
-            const dexsim = dex.simulateSwap (pair, tokenA, tokenB, colsim.tokenBReturns);
+            const dexsim = dex.simulateSwap (pair, tokenA, tokenB, ignisim.tokenBReturns);
             // calculate the profit
             const profitsim = dexsim.tokenBReturns - amountTokenB;
             const percentage = profitsim / amountTokenB * 100;
@@ -241,10 +241,10 @@ const uniswapVolume = {
     USDC: 0
 };
 const doRandomTradeOnIgnifi = false;
-for (let i = 0; i < 300; i++) {
+for (let i = 0; i < 200; i++) {
     const tokenA = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
     const tokenB = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenA);
-    const multiplier = Math.random () > 0.8 ? 0.03 : 0.02;
+    const multiplier = Math.random () > 0.8 ? 0.025 : 0.02;
     const amountTokenA = Number ((Math.random () * uniswap.pairs['SOL/USDC'].reserves[tokenA] * multiplier).toFixed (2));
     uniswapVolume [tokenA] += amountTokenA;
     const { tokenBReturns } = uniswap.swap('SOL/USDC', tokenA, tokenB, amountTokenA);
@@ -252,7 +252,7 @@ for (let i = 0; i < 300; i++) {
     
     // do random trade on colossus
     doRandomTradeOnIgnifi && (() => {
-        const multiplierCol = Math.random () > 0.97 ? 0.02 : 0.01;
+        const multiplierCol = Math.random () > 0.9 ? 0.02 : 0.01;
         const tokenACol = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
         const tokenBCol = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenACol);
         const amountTokenA2 = Number ((Math.random () * ignifi.pairs['SOL/USDC'].reserves[tokenACol] * multiplierCol).toFixed (2));
@@ -345,5 +345,5 @@ console.log (`<other dex> (LP): ${finalUniK.toFixed (8)} (+${KGrowthPercentUni.t
 console.log (`<igni.fi> initial K: ${Math.round (initialK)}`);
 console.log (`<igni.fi> (LP): ${Math.round (finalK)} (${KGrowthPercent.toFixed (2)}% growth)`);
 console.log (`<igni.fi> (LP + ARB): ${KIncludingProfit.toFixed (8)} (+${KGrowthPercentIncludingProfit.toFixed (2)}%)`);
-console.log (`${(KGrowthPercentIncludingProfit / KGrowthPercentUni).toFixed (2)}x of <other dex> K growth`);
+console.log (`<igni.fi> K growth: ${(KGrowthPercentIncludingProfit / KGrowthPercentUni).toFixed (2)}x of <other dex>`);
 // console.log (`<igni.fi> K growth (LP + PROFIT) ${KGrowthPercentIncludingProfit.toFixed (2)}%`);
