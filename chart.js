@@ -1,9 +1,9 @@
-fetch ("./colossusReserves.json").then(response => {
+fetch ("./ignifiReserves.json").then(response => {
     return response.json();
 }).then (async data => {
     console.log (data);
-    const pricesColossus = data.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.SOL).toFixed(2)));
-    console.log (pricesColossus);
+    const pricesIgnifi = data.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.SOL).toFixed(2)));
+    console.log (pricesIgnifi);
     const uniswapData = await fetch ("./uniswapReserves.json");
     const uniswap = await uniswapData.json();
     const pricesUniswap = uniswap.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.SOL).toFixed(2)));
@@ -11,7 +11,7 @@ fetch ("./colossusReserves.json").then(response => {
         bindto: "#chart",
         data: {
             columns: [
-                ["igni.fi", ...pricesColossus],
+                ["igni.fi", ...pricesIgnifi],
                 ["Uniswap", ...pricesUniswap]
             ],
             types: {
@@ -31,20 +31,3 @@ fetch ("./colossusReserves.json").then(response => {
     })
 }
 );
-// bb.generate({
-//     bindto: "#chart",
-//     data: {
-//         columns: [
-//             ["Uniswap", 30, 200, 100, 170, 150, 250],
-//             ["Colossal", 130, 100, 140, 35, 110, 50]
-//         ],
-//         types: {
-//             Uniswap: "area-spline",
-//             Colossal: "area-spline"
-//         },
-//         colors: {
-//           JavaScript: "blue",
-//           PHP: "green"
-//         }
-//     }
-// });
