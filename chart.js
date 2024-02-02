@@ -26,7 +26,7 @@ fetch ("./ignifiReserves.json").then(response => {
     });
     chart.axis.range ({
         min: {
-            y: 100
+            // y: 100
         }
     })
 }

@@ -139,7 +139,7 @@ let uniswap = new DEX ('uniswap', {
         composition: ['SOL', 'USDC'],
         reserves: {
             SOL: 1000,
-            USDC: 250000
+            USDC: 100000
         }
     }
 });
@@ -148,8 +148,8 @@ let ignifi = new Ignifi ('igni.fi', {
     'SOL/USDC': {
         composition: ['SOL', 'USDC'],
         reserves: {
-            SOL: 1000,
-            USDC: 250000
+            SOL: 500,
+            USDC: 50000
         }
     }   
 },
@@ -164,16 +164,16 @@ const initialUniswapK = uniswap.calcK ('SOL/USDC');
 const reservesLog = [];
 const ignifiReservesLog = [];
 const doRandomTradeOnIgnifi = true;
-for (let i = 0; i < 200; i++) {
+for (let i = 0; i < 300; i++) {
     const tokenA = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
     const tokenB = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenA);
-    const multiplier = Math.random () > 0.8 ? 0.035 : 0.025;
+    const multiplier = Math.random () > 0.8 ? 0.05 : 0.015;
     const amountTokenA = Number ((Math.random () * uniswap.pairs['SOL/USDC'].reserves[tokenA] * multiplier).toFixed (2));
     uniswap.swap('SOL/USDC', tokenA, tokenB, amountTokenA);
     
     // do random trade on ignifi
     if (doRandomTradeOnIgnifi) {
-        const multiplierIgni = Math.random () > 0.9 ? 0.02 : 0.01;
+        const multiplierIgni = Math.random () > 0.9 ? 0.0125 : 0.01;
         const tokenAIndex = Math.floor (Math.random () * 2);
         const tokenBIndex = Number (!tokenAIndex);
         const tokenA = ignifi.pairs['SOL/USDC'].composition [tokenAIndex];
@@ -182,7 +182,7 @@ for (let i = 0; i < 200; i++) {
         ignifi.swap ('SOL/USDC', tokenA, tokenB, amountTokenAIgni);
     }
 
-    let iters = 0, maxIters = 10;
+    let iters = 0, maxIters = 5;
     while (ignifi.doArbitrage ('SOL/USDC', uniswap) && iters < maxIters) { iters++ };
 
     const uniswapReserves = {
@@ -217,9 +217,9 @@ const reservesIncludingProfit = {
     USDC: ignifi.pairs ['SOL/USDC'].reserves ['USDC'] + ignifi.stats ['SOL/USDC'].profit ['USDC']
 };
 
-const IgnifiUSDCValue = ignifi.pairs ['SOL/USDC'].reserves.USDC + ignifi.stats ['SOL/USDC'].profit ['USDC'] + (ignifi.pairs ['SOL/USDC'].reserves.SOL + ignifi.stats ['SOL/USDC'].profit ['SOL']) * uniswap.calcPrice ('SOL/USDC', 'SOL');
-const UniswapUSDCValue = uniswap.pairs ['SOL/USDC'].reserves.USDC + uniswap.pairs ['SOL/USDC'].reserves.SOL * uniswap.calcPrice ('SOL/USDC', 'SOL');
-const percentageGrowth = (IgnifiUSDCValue - UniswapUSDCValue) / UniswapUSDCValue * 100;
+const IgnifiUSDCValue =  reservesIncludingProfit.USDC + (reservesIncludingProfit.USDC / reservesIncludingProfit.SOL) * reservesIncludingProfit.SOL;
+const UniswapUSDCValue = uniswap.pairs ['SOL/USDC'].reserves.USDC + (uniswap.pairs ['SOL/USDC'].reserves.USDC / uniswap.pairs ['SOL/USDC'].reserves.SOL) * uniswap.pairs ['SOL/USDC'].reserves.SOL
+const percentageDiff = (IgnifiUSDCValue - UniswapUSDCValue) / UniswapUSDCValue * 100;
 
 const KIncludingProfit = reservesIncludingProfit.SOL * reservesIncludingProfit.USDC;
 const KGrowthPercent = (finalK - initialK) / initialK * 100;
@@ -254,7 +254,7 @@ console.log (`<igni.fi> (LP + ARB): ${(ignifi.pairs ['SOL/USDC'].reserves ['USDC
 console.log ('\n- USDC Value -');
 console.log (`<other dex> (LP): ${UniswapUSDCValue.toFixed (8)} USDC`);
 console.log (`<igni.fi> (LP + ARB): ${IgnifiUSDCValue.toFixed (8)} USDC`);
-console.log (`USDC delta: ${(IgnifiUSDCValue - UniswapUSDCValue).toFixed (8)} USDC (${percentageGrowth.toFixed (2)}%)`);
+console.log (`USDC delta: ${(IgnifiUSDCValue - UniswapUSDCValue).toFixed (8)} USDC (${percentageDiff.toFixed (2)}%)`);
 
 console.log ('\n- K -');
 console.log (`<other dex> initial K: ${Math.round (initialUniswapK)}`);
