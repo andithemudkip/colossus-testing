@@ -1,9 +1,9 @@
 fetch ("./ignifiReserves.json").then(response => {
     return response.json();
 }).then (async data => {
-    console.log (data);
+    // console.log (data);
     const pricesIgnifi = data.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.SOL).toFixed(2)));
-    console.log (pricesIgnifi);
+    // console.log (pricesIgnifi);
     const uniswapData = await fetch ("./uniswapReserves.json");
     const uniswap = await uniswapData.json();
     const pricesUniswap = uniswap.filter ((d,i) => i % 2 === 0).map (d => Number ((d.USDC / d.SOL).toFixed(2)));

@@ -1,4 +1,5 @@
 const fs = require ('fs');
+const Rand = require('rand-seed');
 class DEX {
     constructor (name, pairs) {
         this.name = name;
@@ -72,7 +73,7 @@ class Ignifi extends DEX {
         super (name, pairs);
         this.funds = funds;
     }
-    doArbitrage (pair, dex) {
+    doArbitrage (pair, dex, minProfit = 0.5) {
         const tokenA = this.pairs[pair].composition [0];
         const tokenB = this.pairs[pair].composition [1];
         const tokenAPrice = this.calcPrice (pair, tokenA);
@@ -92,7 +93,7 @@ class Ignifi extends DEX {
             const profitsim = dexsim.tokenBReturns - amountTokenA;
             const percentage = profitsim / amountTokenA * 100;
 
-            if (percentage < 0.5) return false;
+            if (percentage < minProfit) return;
 
             const { tokenBReturns } = this.swap (pair, tokenA, tokenB, amountTokenA);
             const returns = dex.swap (pair, tokenB, tokenA, tokenBReturns);
@@ -118,7 +119,7 @@ class Ignifi extends DEX {
             const profitsim = dexsim.tokenBReturns - amountTokenB;
             const percentage = profitsim / amountTokenB * 100;
 
-            if (percentage < 0.5) return false;
+            if (percentage < minProfit) return;
 
             const { tokenBReturns } = this.swap (pair, tokenB, tokenA, amountTokenB);
             const returns = dex.swap (pair, tokenA, tokenB, tokenBReturns);
@@ -138,8 +139,8 @@ let uniswap = new DEX ('uniswap', {
     'SOL/USDC': {
         composition: ['SOL', 'USDC'],
         reserves: {
-            SOL: 1000,
-            USDC: 100000
+            SOL: 100000,
+            USDC: 10000000
         }
     }
 });
@@ -148,8 +149,8 @@ let ignifi = new Ignifi ('igni.fi', {
     'SOL/USDC': {
         composition: ['SOL', 'USDC'],
         reserves: {
-            SOL: 500,
-            USDC: 50000
+            SOL: 250,
+            USDC: 25000
         }
     }   
 },
@@ -159,19 +160,43 @@ let ignifi = new Ignifi ('igni.fi', {
     }
 );
 
+
+const volatilityRanges = {
+    severe: {
+        chance: 0.7,
+        lowValue: 0.01,
+        highValue: 0.05
+    },
+    normal: {
+        chance: 0.8,
+        lowValue: 0.01,
+        highValue: 0.025
+    },
+    low: {
+        chance: 0.9,
+        lowValue: 0.005,
+        highValue: 0.0075
+    }
+}
+const rand = new Rand.default('2');
+Math.random = () => rand.next();
 const initialK = ignifi.calcK ('SOL/USDC');
 const initialUniswapK = uniswap.calcK ('SOL/USDC');
 const reservesLog = [];
 const ignifiReservesLog = [];
-const doRandomTradeOnIgnifi = true;
+const doRandomTradeOnIgnifi = false;
+const maxArbTrades = 15;
+const arbTradesEvery = 1;
+const minProfit = 3;
+const volatilityRange = volatilityRanges.low;
 for (let i = 0; i < 300; i++) {
     const tokenA = uniswap.pairs['SOL/USDC'].composition [Math.floor (Math.random () * 2)];
     const tokenB = uniswap.pairs['SOL/USDC'].composition.find (t => t !== tokenA);
-    const multiplier = Math.random () > 0.8 ? 0.05 : 0.015;
-    const amountTokenA = Number ((Math.random () * uniswap.pairs['SOL/USDC'].reserves[tokenA] * multiplier).toFixed (2));
+    const volatility = Math.random () > volatilityRange.chance ? volatilityRange.lowValue : volatilityRange.highValue;
+    const amountTokenA = Number ((Math.random () * uniswap.pairs['SOL/USDC'].reserves[tokenA] * volatility).toFixed (2));
     uniswap.swap('SOL/USDC', tokenA, tokenB, amountTokenA);
     
-    // do random trade on ignifi
+    // do random trade on ignifi [dca bots or other random trades]
     if (doRandomTradeOnIgnifi) {
         const multiplierIgni = Math.random () > 0.9 ? 0.0125 : 0.01;
         const tokenAIndex = Math.floor (Math.random () * 2);
@@ -181,9 +206,11 @@ for (let i = 0; i < 300; i++) {
         const amountTokenAIgni = Number ((Math.random () * ignifi.pairs['SOL/USDC'].reserves[tokenA] * multiplierIgni).toFixed (2));
         ignifi.swap ('SOL/USDC', tokenA, tokenB, amountTokenAIgni);
     }
-
-    let iters = 0, maxIters = 5;
-    while (ignifi.doArbitrage ('SOL/USDC', uniswap) && iters < maxIters) { iters++ };
+    // do arbitrage on ignifi every arbTradesEvery on uniswap
+    if (i % arbTradesEvery === 0) {
+        let iters = 0;
+        while (ignifi.doArbitrage ('SOL/USDC', uniswap, minProfit) && iters < maxArbTrades) { iters++ };
+    }
 
     const uniswapReserves = {
         SOL: uniswap.pairs ['SOL/USDC'].reserves ['SOL'],
